@@ -26,7 +26,7 @@ class DataLoader:
         df = pd.read_csv(csv_path, **self.config.pandas_kwargs)
 
         # Drop URL and Dates columns if they exist
-        columns_to_drop = ['URL', 'Dates']
+        columns_to_drop = ['URL', 'Dates','Price Sentiment']
         df = df.drop(columns=[col for col in columns_to_drop if col in df.columns], errors='ignore')
         df = self.preprocess_data(df)
         return df
