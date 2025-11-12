@@ -13,7 +13,7 @@ class Config:
     data_dir: str = field(default_factory=lambda: os.path.join(os.path.dirname(os.path.dirname(__file__)), "data"))
     
     # Weights & Biases configuration
-    project: str = ""
+    project: str = "NLP_mini"
     tags: List[str] = None
     api_key: str = ""
     entity: str = "jojs-it-universitetet-i-k-benhavn"
