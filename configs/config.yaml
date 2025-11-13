@@ -1,0 +1,39 @@
+# General settings
+seed: 42
+
+# Data settings
+kaggle_dataset: "ankurzing/sentiment-analysis-in-commodity-market-gold"
+file_path: ""  # relative path inside the dataset or empty for default
+data_dir: "data"  # relative to project root
+
+# Pandas settings
+pandas_kwargs: {}
+
+# Weights & Biases configuration
+wandb:
+  project: "NLP_mini"
+  entity: "jojs-it-universitetet-i-k-benhavn"
+  tags: []
+  api_key: ""
+
+# Model settings
+model:
+  name: "distilbert-base-uncased"
+  hidden_size: 768
+  dropout_rate: 0.3
+  num_direction_classes: 2
+  num_comparison_classes: 2
+  num_future_info_classes: 2
+
+# Training settings
+training:
+  batch_size: 16
+  num_epochs: 10
+  learning_rate: 2.0e-5
+  weight_decay: 0.01
+  warmup_ratio: 0.1
+  max_grad_norm: 1.0
+  early_stopping_patience: 3
+  train_split: 0.8
+  val_split: 0.1
+  test_split: 0.1
