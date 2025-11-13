@@ -7,6 +7,9 @@ from main import load_config
 class DataLoader:
     def __init__(self):
         self.config = load_config('configs/config.yaml')
+        project_root = Path(__file__).parent.parent
+        self.data_dir = (project_root / self.config.get('data_dir', 'data')).resolve()
+        self.data_dir.mkdir(parents=True, exist_ok=True)
         
     def load_data(self):
         """Download dataset from Kaggle and load it into a DataFrame."""
@@ -41,3 +44,18 @@ class DataLoader:
         # Example preprocessing: drop rows with missing values
         df = df.dropna().reset_index(drop=True)
         return df
+    
+    def save_csv(self, df, filename='processed_data.csv'):
+        """Save DataFrame to data directory."""
+        save_path = self.data_dir / filename
+        df.to_csv(save_path, index=False)
+        print(f"Saved: {save_path}")
+        return save_path
+    
+    def load_csv(self, filename='processed_data.csv'):
+        """Load DataFrame from data directory."""
+        load_path = self.data_dir / filename
+        if not load_path.exists():
+            raise FileNotFoundError(f"Not found: {load_path}")
+        print(f"Loaded: {load_path}")
+        return pd.read_csv(load_path)
