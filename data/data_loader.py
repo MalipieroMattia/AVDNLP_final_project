@@ -59,3 +59,8 @@ class DataLoader:
             raise FileNotFoundError(f"Not found: {load_path}")
         print(f"Loaded: {load_path}")
         return pd.read_csv(load_path)
+    
+    def load_sample_data(self, num_samples=5):
+        """Load a small sample of the data for quick testing."""
+        df = self.load_csv()
+        return df.sample(n=num_samples).reset_index(drop=True)

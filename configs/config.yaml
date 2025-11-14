@@ -18,12 +18,12 @@ wandb:
 
 # Model settings
 model:
-  name: "distilbert-base-uncased"
+  distilbert: "distilbert-base-uncased"
+  bert: "bert-base-uncased"
   hidden_size: 768
   dropout_rate: 0.3
-  num_direction_classes: 2
-  num_comparison_classes: 2
-  num_future_info_classes: 2
+  freeze_strategy: "partial-2"
+  use_lora: false
 
 # Training settings
 training:
