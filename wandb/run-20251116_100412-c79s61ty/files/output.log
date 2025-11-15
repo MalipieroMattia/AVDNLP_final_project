@@ -1,0 +1,51 @@
+
+============================================================
+Starting Training: 4 epochs
+Device: cpu
+Train samples: 70
+Val samples: 10
+============================================================
+
+
+Epoch 1/4
+------------------------------------------------------------
+Training:   0%|                                                                          | 0/18 [00:00<?, ?it/s]
+Traceback (most recent call last):
+  File "C:\Users\matma\Desktop\ITU\NLP\AVDNLP_final_project\main.py", line 138, in <module>
+    main()
+  File "C:\Users\matma\Desktop\ITU\NLP\AVDNLP_final_project\main.py", line 125, in main
+    trainer.train()
+  File "C:\Users\matma\Desktop\ITU\NLP\AVDNLP_final_project\utils\training.py", line 175, in train
+    train_loss, train_acc = self.train_epoch()
+                            ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\matma\Desktop\ITU\NLP\AVDNLP_final_project\utils\training.py", line 75, in train_epoch
+    logits = self.model(input_ids, attention_mask)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\matma\anaconda3\envs\ADVNLPfinal\Lib\site-packages\torch\nn\modules\module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\matma\anaconda3\envs\ADVNLPfinal\Lib\site-packages\torch\nn\modules\module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\matma\Desktop\ITU\NLP\AVDNLP_final_project\model\model_loader.py", line 43, in forward
+    outputs = self.transformer(input_ids=input_ids, attention_mask=attention_mask)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\matma\anaconda3\envs\ADVNLPfinal\Lib\site-packages\torch\nn\modules\module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\matma\anaconda3\envs\ADVNLPfinal\Lib\site-packages\torch\nn\modules\module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\matma\anaconda3\envs\ADVNLPfinal\Lib\site-packages\peft\peft_model.py", line 1722, in forward
+    return self.base_model(
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\matma\anaconda3\envs\ADVNLPfinal\Lib\site-packages\torch\nn\modules\module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\matma\anaconda3\envs\ADVNLPfinal\Lib\site-packages\torch\nn\modules\module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\matma\anaconda3\envs\ADVNLPfinal\Lib\site-packages\peft\tuners\tuners_utils.py", line 308, in forward
+    return self.model.forward(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: DistilBertModel.forward() got an unexpected keyword argument 'labels'

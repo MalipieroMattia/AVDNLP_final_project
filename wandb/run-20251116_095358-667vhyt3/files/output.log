@@ -1,0 +1,88 @@
+
+============================================================
+Starting Training: 4 epochs
+Device: cpu
+Train samples: 70
+Val samples: 10
+============================================================
+
+
+Epoch 1/4
+------------------------------------------------------------
+Training: 100%|████████████████████████████████████████| 18/18 [00:31<00:00,  1.73s/it, loss=0.8127, acc=51.43%]
+Validating: 100%|████████████████████████████████████████| 3/3 [00:01<00:00,  2.47it/s, loss=0.7270, acc=60.00%]
+
+Epoch 1 Summary:
+  Train Loss: 0.9801 | Train Acc: 51.43%
+  Val Loss:   0.7530 | Val Acc:   60.00%
+  Learning Rate: 3.00e-05
+  (Local checkpoint saving disabled in config)
+New best validation loss: 0.7530
+  (Local checkpoint saving disabled in config)
+New best validation accuracy: 60.00%
+
+Epoch 2/4
+------------------------------------------------------------
+Training: 100%|████████████████████████████████████████| 18/18 [00:30<00:00,  1.68s/it, loss=0.4196, acc=57.14%]
+Validating: 100%|████████████████████████████████████████| 3/3 [00:01<00:00,  2.51it/s, loss=0.7236, acc=60.00%]
+
+Epoch 2 Summary:
+  Train Loss: 0.7817 | Train Acc: 57.14%
+  Val Loss:   0.7376 | Val Acc:   60.00%
+  Learning Rate: 3.00e-05
+  (Local checkpoint saving disabled in config)
+New best validation loss: 0.7376
+
+Epoch 3/4
+------------------------------------------------------------
+Training: 100%|████████████████████████████████████████| 18/18 [00:30<00:00,  1.72s/it, loss=2.2429, acc=65.71%]
+Validating: 100%|████████████████████████████████████████| 3/3 [00:01<00:00,  2.55it/s, loss=0.6791, acc=60.00%]
+
+Epoch 3 Summary:
+  Train Loss: 0.7145 | Train Acc: 65.71%
+  Val Loss:   0.7411 | Val Acc:   60.00%
+  Learning Rate: 3.00e-05
+
+Epoch 4/4
+------------------------------------------------------------
+Training: 100%|████████████████████████████████████████| 18/18 [00:30<00:00,  1.68s/it, loss=0.2050, acc=71.43%]
+Validating: 100%|████████████████████████████████████████| 3/3 [00:01<00:00,  2.60it/s, loss=0.7790, acc=60.00%]
+
+Epoch 4 Summary:
+  Train Loss: 0.5738 | Train Acc: 71.43%
+  Val Loss:   0.7520 | Val Acc:   60.00%
+  Learning Rate: 3.00e-05
+
+============================================================
+Training Complete!
+Best Val Loss: 0.7376
+Best Val Accuracy: 60.00%
+============================================================
+
+
+============================================================
+Testing on Test Set
+============================================================
+Testing: 100%|███████████████████████████████████████████| 5/5 [00:02<00:00,  2.10it/s, loss=1.4489, acc=50.00%]
+
+
+Test Results:
+  Loss: 0.8919
+  Accuracy: 50.00%
+C:\Users\matma\anaconda3\envs\ADVNLPfinal\Lib\site-packages\sklearn\metrics\_classification.py:1731: UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 in labels with no predicted samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, f"{metric.capitalize()} is", result.shape[0])
+C:\Users\matma\anaconda3\envs\ADVNLPfinal\Lib\site-packages\sklearn\metrics\_classification.py:1731: UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 in labels with no predicted samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, f"{metric.capitalize()} is", result.shape[0])
+C:\Users\matma\anaconda3\envs\ADVNLPfinal\Lib\site-packages\sklearn\metrics\_classification.py:1731: UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 in labels with no predicted samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, f"{metric.capitalize()} is", result.shape[0])
+
+Classification Report:
+              precision    recall  f1-score   support
+
+          up       0.53      0.73      0.62        11
+      stable       0.00      0.00      0.00         1
+        down       0.40      0.25      0.31         8
+
+    accuracy                           0.50        20
+   macro avg       0.31      0.33      0.31        20
+weighted avg       0.45      0.50      0.46        20

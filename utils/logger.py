@@ -2,6 +2,7 @@ import wandb
 from typing import Dict, Any, Optional, List
 from utils.plots import TrainingPlotter
 
+
 class WandbLogger:
     """Weights & Biases logger for tracking experiments and visualizations."""
     
@@ -17,14 +18,14 @@ class WandbLogger:
         self.plotter = TrainingPlotter()
         self.run = None
         
-        if config.api_key:
-            wandb.login(key=config.api_key)
+        if self.config['wandb']['api_key']:
+            wandb.login(key=self.config['wandb']['api_key'])
         
         self.run = wandb.init(
-            project=config.project,
-            entity=config.entity,
-            tags=config.tags if config.tags else [],
-            name=run_name,
+            project=self.config['wandb']['project'],
+            entity=self.config['wandb']['entity'],
+            tags=self.config['wandb']['tags'] if self.config['wandb']['tags'] else [],
+            name=self.config['wandb']['run_name'],
             notes=notes
         )
     
@@ -95,18 +96,6 @@ class WandbLogger:
             wandb.log({"learning_rate_schedule": wandb.Image(fig)}, step=step)
             self.plotter.close_figure(fig)
     
-    def log_model_comparison(self, results_dict: Dict[str, Dict[str, float]], 
-                            step: Optional[int] = None):
-        """Log model comparison chart (e.g., BERT vs BERT+LoRA).
-        
-        Args:
-            results_dict: Dict with model names and their metrics
-            step: Optional step number for logging
-        """
-        if self.run:
-            fig = self.plotter.plot_model_comparison(results_dict)
-            wandb.log({"model_comparison": wandb.Image(fig)}, step=step)
-            self.plotter.close_figure(fig)
     
     def log_trainable_params(self, params_dict: Dict[str, float], 
                             step: Optional[int] = None):

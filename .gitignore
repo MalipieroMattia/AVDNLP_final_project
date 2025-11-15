@@ -1,1 +1,6 @@
 /venv
+/wandb
+/checkpoints
+*.pyc
+*.pyc
+*.pyc
