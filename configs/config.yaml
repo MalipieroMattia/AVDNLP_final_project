@@ -2,7 +2,7 @@
 seed: 42
 
 # Data settings
-kaggle_dataset: "ankurzing/sentiment-analysis-in-commodity-market-gold"
+kaggle_dataset: "daittan/gold-commodity-news-and-dimensions"
 file_path: ""  # relative path inside the dataset or empty for default
 data_dir: "data"  # relative to project root
 
