@@ -99,37 +99,6 @@ class TrainingPlotter:
         plt.tight_layout()
         return fig
     
-    def plot_model_comparison(self, results_dict):
-        """Compare metrics across models (e.g., BERT vs BERT+LoRA).
-        
-        Args:
-            results_dict: Dict with model names as keys and metric dicts as values
-                         e.g., {'BERT': {'accuracy': 0.85, 'f1': 0.83}, ...}
-            
-        Returns:
-            matplotlib.figure.Figure for W&B logging
-        """
-        models = list(results_dict.keys())
-        metrics = list(results_dict[models[0]].keys())
-        
-        x = np.arange(len(metrics))
-        width = 0.35
-        
-        fig, ax = plt.subplots(figsize=(12, 6))
-        
-        for i, model in enumerate(models):
-            values = [results_dict[model][m] for m in metrics]
-            ax.bar(x + i * width, values, width, label=model, alpha=0.8)
-        
-        ax.set_xlabel('Metrics', fontsize=12)
-        ax.set_ylabel('Score', fontsize=12)
-        ax.set_title('Model Comparison', fontsize=14, fontweight='bold')
-        ax.set_xticks(x + width / 2)
-        ax.set_xticklabels(metrics)
-        ax.legend(fontsize=10)
-        ax.grid(True, alpha=0.3, axis='y')
-        plt.tight_layout()
-        return fig
     
     def plot_trainable_params(self, params_dict):
         """Visualize trainable parameters comparison (useful for LoRA).
