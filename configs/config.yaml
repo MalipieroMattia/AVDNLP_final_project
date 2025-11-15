@@ -19,7 +19,7 @@ wandb:
   entity: "jojs-it-universitetet-i-k-benhavn"
   run_name: "experiment_1"
   tags: ['test']
-  api_key: "1e4211a4b1feb397a67944a37634fd6d0b72686b"
+  api_key: ""
   log_model: false
 
 # Model settings
