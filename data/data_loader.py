@@ -8,9 +8,7 @@ from main import load_config
 class DataLoader:
     def __init__(self):
         self.config = load_config("configs/config.yaml")
-        self.config = load_config("configs/config.yaml")
         project_root = Path(__file__).parent.parent
-        self.data_dir = (project_root / self.config.get("data_dir", "data")).resolve()
         self.data_dir = (project_root / self.config.get("data_dir", "data")).resolve()
         self.data_dir.mkdir(parents=True, exist_ok=True)
 
@@ -20,11 +18,7 @@ class DataLoader:
         # Access config values as dictionary keys
         path = kagglehub.dataset_download(self.config["kaggle_dataset"])
 
-        path = kagglehub.dataset_download(self.config["kaggle_dataset"])
-
         # Find CSV file
-        if self.config["file_path"]:
-            csv_path = os.path.join(path, self.config["file_path"])
         if self.config["file_path"]:
             csv_path = os.path.join(path, self.config["file_path"])
         else:
@@ -36,14 +30,8 @@ class DataLoader:
 
         # Load data with pandas_kwargs from config
         df = pd.read_csv(csv_path, **self.config.get("pandas_kwargs", {}))
-        df = pd.read_csv(csv_path, **self.config.get("pandas_kwargs", {}))
 
         # Drop URL and Dates columns if they exist
-        columns_to_drop = ["URL", "Dates", "Price Sentiment"]
-        df = df.drop(
-            columns=[col for col in columns_to_drop if col in df.columns],
-            errors="ignore",
-        )
         columns_to_drop = ["URL", "Dates", "Price Sentiment"]
         df = df.drop(
             columns=[col for col in columns_to_drop if col in df.columns],
@@ -56,12 +44,6 @@ class DataLoader:
         """Preprocess the DataFrame (e.g., handle missing values)."""
         # Standardize column names: lowercase with underscores
         df.columns = df.columns.str.lower().str.replace(" ", "_")
-
-        df.columns = df.columns.str.lower().str.replace(" ", "_")
-
-        # Example preprocessing: drop rows with missing values
-        # df = df.dropna().reset_index(drop=True)
-        # df = df.dropna().reset_index(drop=True)
         return df
 
     def save_csv(self, df, filename="processed_data.csv"):
