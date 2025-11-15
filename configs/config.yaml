@@ -32,10 +32,11 @@ model:
   dropout_rate: 0.3
   use_lora: false
   checkpoint_dir: "checkpoints"  # relative to project root
+  save_local: false  
 
 # Training settings
 training:
-  batch_size: 8
+  batch_size: 4
   num_epochs: 4
   learning_rate: 0.00002
   dropout_rate: 0.3
