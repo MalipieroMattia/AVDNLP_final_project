@@ -32,6 +32,7 @@ model:
   dropout_rate: 0.3
   use_lora: false
   checkpoint_dir: "checkpoints"  # relative to project root
+  save_local: false  
 
 # Training settings
 training:
