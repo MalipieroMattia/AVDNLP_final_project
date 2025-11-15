@@ -187,10 +187,10 @@ class Trainer:
             # Log to W&B
             self.logger.log_metrics({
                 'epoch': epoch + 1,
-                'train/loss': train_loss,
-                'train/acc': train_acc,
-                'val/loss': val_loss,
-                'val/acc': val_acc,
+                'loss/train': train_loss,      # Use 'loss/' prefix
+                'loss/val': val_loss,          # Use 'loss/' prefix
+                'accuracy/train': train_acc,   # Use 'accuracy/' prefix
+                'accuracy/val': val_acc,       # Use 'accuracy/' prefix
                 'learning_rate': current_lr
             }, step=epoch + 1)
             

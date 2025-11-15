@@ -1,3 +1,5 @@
+# python main.py --sample --sample-size 100
+
 import yaml
 from pathlib import Path
 import argparse
