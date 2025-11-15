@@ -1,6 +1,10 @@
 import yaml
 from pathlib import Path
 import argparse
+import torch
+from data.data_loader import DataLoader
+from model.model_loader import ModelLoader
+from utils.training import Trainer
 
 def load_config(config_path='configs/config.yaml'):
     """
@@ -33,8 +37,111 @@ def main():
         default='configs/config.yaml',
         help='Path to config file (default: configs/config.yaml)'
     )
+    parser.add_argument(
+        '--sample',
+        action='store_true',
+        help='Use small sample dataset for testing'
+    )
+    parser.add_argument(
+        '--sample-size',
+        type=int,
+        default=100,
+        help='Number of samples to use in sample mode (default: 100)'
+    )
     args = parser.parse_args()
+    
+    # Load configuration
     config = load_config(args.config)
+    
+    # Set device
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    print(f"Using device: {device}")
+    
+    # Initialize data loader
+    print("\n" + "="*60)
+    print("Loading Data")
+    print("="*60)
+    data_loader = DataLoader(config)
+    
+    # Load or download data
+    try:
+        df = data_loader.load_csv()
+        print("Loaded existing processed data")
+    except FileNotFoundError:
+        print("Downloading data from Kaggle...")
+        df = data_loader.load_data()
+        data_loader.save_csv(df)
+    
+    # Use sample if requested
+    if args.sample:
+        print(f"\nUsing sample of {args.sample_size} rows for testing")
+        df = df.sample(n=min(args.sample_size, len(df)), random_state=42).reset_index(drop=True)
+    
+    # Split data
+    train_df, val_df, test_df = data_loader.split_data(
+        df, 
+        test_size=config['data']['test_size'],
+        val_size=config['data']['val_size']
+    )
+    
+    # Load model and tokenizer
+    print("\n" + "="*60)
+    print("Loading Model")
+    print("="*60)
+    model_loader = ModelLoader(config)
+    
+    freeze_strategy = config['model']['freeze_strategy']
+    use_lora = config['model']['use_lora']
+    
+    model, tokenizer = model_loader.load_model_and_tokenizer(
+        use_lora=use_lora,
+        freeze_strategy=freeze_strategy
+    )
+    
+    # Print model info
+    total_params, trainable_params = model_loader.count_parameters(model)
+    print(f"Total parameters: {total_params:,}")
+    print(f"Trainable parameters: {trainable_params:,}")
+    print(f"Trainable %: {100 * trainable_params / total_params:.2f}%")
+    
+    # Create dataloaders
+    print("\n" + "="*60)
+    print("Creating DataLoaders")
+    print("="*60)
+    train_loader, val_loader, test_loader = data_loader.create_dataloaders(
+        train_df=train_df,
+        val_df=val_df,
+        test_df=test_df,
+        tokenizer=tokenizer,
+        batch_size=config['training']['batch_size'],
+        max_length=config['model']['max_len']
+    )
+    
+    # Initialize trainer
+    print("\n" + "="*60)
+    print("Initializing Trainer")
+    print("="*60)
+    trainer = Trainer(
+        model=model,
+        train_loader=train_loader,
+        val_loader=val_loader,
+        test_loader=test_loader,
+        config=config,
+        device=device
+    )
+    
+    # Train
+    trainer.train()
+    
+    # Test
+    trainer.test()
+    
+    # Finish W&B logging
+    trainer.logger.finish()
+    
+    print("\n" + "="*60)
+    print("Run Complete!")
+    print("="*60)
 
 if __name__ == "__main__":
     main()

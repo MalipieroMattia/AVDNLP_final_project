@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from transformers import AutoModel, AutoTokenizer
-from main import load_config
+
 
 
 class PriceDirectionClassifier(nn.Module):
@@ -14,12 +14,12 @@ class PriceDirectionClassifier(nn.Module):
     - Linear classification head (768 -> 3 classes)
     """
     
-    def __init__(self):
+    def __init__(self,config):
         """
         Args:
             config: Configuration dict with model settings
         """
-        self.config = load_config("configs/config.yaml")
+        self.config = config
         super().__init__()
         model_name = self.config['model']['distilbert']
         
@@ -103,9 +103,9 @@ class PriceDirectionClassifier(nn.Module):
 class ModelLoader:
     """Helper class to load models and tokenizers with different configurations."""
     
-    def __init__(self):
+    def __init__(self,config):
         """Load configuration from YAML file."""
-        self.config = load_config("configs/config.yaml")
+        self.config = config
         self.freeze_strategy = self.config['model'].get('freeze_strategy', 'frozen')
         self.frozen_layers = self.config['model']['num_frozen_layers']
         self.use_lora = self.config['model']['use_lora']
@@ -131,7 +131,7 @@ class ModelLoader:
         tokenizer = AutoTokenizer.from_pretrained(model_name)
         
         # Load model
-        model = PriceDirectionClassifier()
+        model = PriceDirectionClassifier(self.config)
 
         # Apply freezing strategy
         if freeze_strategy == 'frozen':

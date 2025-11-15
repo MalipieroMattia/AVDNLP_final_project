@@ -5,12 +5,11 @@ from pathlib import Path
 from sklearn.model_selection import train_test_split
 from torch.utils.data import Dataset, DataLoader as TorchDataLoader
 import torch
-from main import load_config
 
 
 class DataLoader:
-    def __init__(self):
-        self.config = load_config("configs/config.yaml")
+    def __init__(self, config):
+        self.config = config
         project_root = Path(__file__).parent.parent
         self.data_dir = (project_root / self.config['data'].get("data_dir", "data")).resolve()
         self.data_dir.mkdir(parents=True, exist_ok=True)

@@ -17,8 +17,10 @@ data:
 wandb:
   project: "NLP_mini"
   entity: "jojs-it-universitetet-i-k-benhavn"
-  tags: []
-  api_key: ""
+  run_name: "experiment_1"
+  tags: ['test']
+  api_key: "1e4211a4b1feb397a67944a37634fd6d0b72686b"
+  log_model: false
 
 # Model settings
 model:
@@ -29,12 +31,13 @@ model:
   max_len: 512
   dropout_rate: 0.3
   use_lora: false
+  checkpoint_dir: "checkpoints"  # relative to project root
 
 # Training settings
 training:
-  batch_size: 16
-  num_epochs: 10
-  learning_rate: 1.0e-3
+  batch_size: 8
+  num_epochs: 4
+  learning_rate: 0.00002
   dropout_rate: 0.3
   weight_decay: 0.01
   warmup_ratio: 0.1
