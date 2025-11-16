@@ -11,15 +11,12 @@ data:
   pandas_kwargs: {} # Pandas settings for reading CSV files
 
 
-
-
 # Weights & Biases configuration
 wandb:
   project: "NLP_mini"
   entity: "jojs-it-universitetet-i-k-benhavn"
   run_name: "experiment_1"
   tags: ['test']
-  api_key: ""
   log_model: false
 
 # Model settings
@@ -45,3 +42,12 @@ training:
   max_grad_norm: 1.0
   early_stopping_patience: 3
 
+Lora:
+  r: 8  # LoRA rank 
+  lora_alpha: 16  
+  lora_dropout: 0.1  
+  target_modules: ["query", "value"]  # which attention weight matrices to adapt
+  bias: "none"  # 'none', 'all' or 'lora_only'
+  task_type: "SEQ_CLS" 
+  inference_mode: False
+  modules_to_save: "classifier"
