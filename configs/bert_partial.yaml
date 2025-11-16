@@ -28,19 +28,19 @@ model:
   use_lora: false
   freeze_strategy: "partial"  # unfreeze top N layers
   num_frozen_layers: 4  # number of top layers to unfreeze (adjust as needed)
-  max_len: 512
-  dropout_rate: 0.3
+  max_len: 256
+  dropout_rate: 0.5
   checkpoint_dir: "checkpoints"
   save_local: false
 
 # Training settings
 training:
-  batch_size: 4
-  num_epochs: 4
-  learning_rate: 0.00003  # slightly higher than full fine-tuning
-  dropout_rate: 0.3
-  weight_decay: 0.01
+  batch_size: 8
+  num_epochs: 20
+  learning_rate: 0.00001  # slightly higher than full fine-tuning
+  dropout_rate: 0.5
+  weight_decay: 0.1
   warmup_ratio: 0.1
   max_grad_norm: 1.0
-  early_stopping_patience: 3
+  early_stopping_patience: 5
 
