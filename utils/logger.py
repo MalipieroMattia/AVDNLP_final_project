@@ -33,6 +33,12 @@ class WandbLogger:
             tags=self.config["wandb"]["tags"] if self.config["wandb"]["tags"] else [],
             name=self.config["wandb"]["run_name"],
             notes=notes,
+            config={  # ADD THIS: Log config to W&B
+                "model": self.config.get("model", {}),
+                "training": self.config.get("training", {}),
+                "lora": self.config.get("lora", {}),
+                "data": self.config.get("data", {})
+            }
         )
 
     def log_metrics(self, metrics: Dict[str, Any], step: Optional[int] = None):
