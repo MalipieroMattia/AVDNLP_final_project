@@ -1,7 +1,7 @@
 /venv
 /wandb
 /checkpoints
-*.pyc
-*.pyc
+__pycache__/
 *.pyc
 .env
+
