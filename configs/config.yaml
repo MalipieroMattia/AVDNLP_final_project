@@ -4,11 +4,12 @@ seed: 42
 # Data settings
 data:
   kaggle_dataset: "daittan/gold-commodity-news-and-dimensions"
-  file_path: ""  # relative path inside the dataset or empty for default
-  data_dir: "data"  # relative to project root
+  file_path: "Stanford/snli_1.0_train.txt"  # relative path inside the dataset or empty for default
+  data_dir: "Stanford"  # relative to project root
   test_size: 0.2
   val_size: 0.1
   pandas_kwargs: {} # Pandas settings for reading CSV files
+  label_map: {'entailment': 0, 'neutral': 1, 'contradiction': 2}
 
 
 # Weights & Biases configuration
@@ -22,7 +23,7 @@ wandb:
 # Model settings
 model:
   distilbert: "distilbert-base-uncased"
-  bert: "bert-base-uncased"
+  name: "bert-base-uncased"
   freeze_strategy: "frozen" #'frozen', 'partial', or 'full'
   num_frozen_layers: 2
   max_len: 512

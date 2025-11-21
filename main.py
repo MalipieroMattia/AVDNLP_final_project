@@ -4,7 +4,8 @@ import yaml
 from pathlib import Path
 import argparse
 import torch
-from data.data_loader import DataLoader
+#from data.Gold.data_loader import DataLoader
+from data.Stanford.data_loader_stanford import DataLoaderStanford
 from model.model_loader import ModelLoader
 from utils.training import Trainer
 
@@ -63,7 +64,7 @@ def main():
     print("\n" + "=" * 60)
     print("Loading Data")
     print("=" * 60)
-    data_loader = DataLoader(config)
+    data_loader = DataLoaderStanford(config)
 
     # Load or download data
     try:

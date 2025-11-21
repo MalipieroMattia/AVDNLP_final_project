@@ -286,7 +286,7 @@ class Trainer:
         # Log to W&B
         cm = confusion_matrix(all_labels, all_predictions)
         self.logger.log_metrics({"test/loss": avg_loss, "test/acc": accuracy})
-        self.logger.log_confusion_matrix(cm, class_names=["up", "stable", "down"])
+        self.logger.log_confusion_matrix(cm, class_names=["entailment", "neutral", "contradiction"])
 
         return avg_loss, accuracy, all_predictions, all_labels
 

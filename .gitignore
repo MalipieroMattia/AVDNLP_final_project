@@ -8,3 +8,4 @@ __pycache__/
 .env
 /wandb
 /wandb
+data/Stanford/snli_1.0_train.txt
