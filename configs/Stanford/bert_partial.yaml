@@ -17,8 +17,8 @@ data:
 wandb:
   project: "NLP_mini"
   entity: "jojs-it-universitetet-i-k-benhavn"
-  run_name: "bert_partial_finetune"
-  tags: ['bert', 'partial-finetune']
+  run_name: "Stanford_bert_partial_finetune"
+  tags: ['Stanford','bert', 'partial-finetune']
   log_model: false
 
 # Model settings

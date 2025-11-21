@@ -17,8 +17,8 @@ data:
 wandb:
   project: "NLP_mini"
   entity: "jojs-it-universitetet-i-k-benhavn"
-  run_name: "distilbert_lora_r8"
-  tags: ['distilbert', 'lora', 'r=8']
+  run_name: "Stanford_distilbert_lora_r8"
+  tags: ['Stanford','distilbert', 'lora', 'r=8']
   log_model: false
 
 # Model settings

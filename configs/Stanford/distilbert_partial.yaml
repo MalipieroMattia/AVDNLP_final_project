@@ -18,8 +18,8 @@ data:
 wandb:
   project: "NLP_mini"
   entity: "jojs-it-universitetet-i-k-benhavn"
-  run_name: "distilbert_partial_finetune"
-  tags: ['distilbert', 'partial-finetune']
+  run_name: "Stanford_distilbert_partial_finetune"
+  tags: ['Stanford','distilbert', 'partial-finetune']
   log_model: false
 
 # Model settings
