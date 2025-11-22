@@ -1,26 +1,32 @@
 import numpy as np
 import pandas as pd
+import torch
 import umap
 import hdbscan
-import re
-import spacy
-import torch
+import matplotlib.pyplot as plt
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import pairwise_distances_argmin_min
 from collections import Counter
-import matplotlib.pyplot as plt
+import re
+import spacy
+from torch.utils.data import DataLoader
 
 
-# Load spaCy stopwords globally
+# ---------------------------------------------------------
+# Global stopwords
+# ---------------------------------------------------------
 nlp = spacy.load("en_core_web_sm")
 spacy_stopwords = nlp.Defaults.stop_words
 
 
+# ============================================================================
+#                              EDGE CASE ANALYZER
+# ============================================================================
 class EdgeCaseAnalyzer:
 
-    # -----------------------------------------------------
-    # Constructor — requires in-memory model + tokenizer
-    # -----------------------------------------------------
+    # ---------------------------------------------------------
+    # Constructor — uses IN-MEMORY model + tokenizer
+    # ---------------------------------------------------------
     def __init__(
         self,
         df,
@@ -28,45 +34,49 @@ class EdgeCaseAnalyzer:
         tokenizer,
         text_column="text",
         batch_size=32,
-        max_length=256
+        max_length=256,
     ):
         """
         df          : misclassified dataframe
-        model       : FINETUNED MODEL OBJECT already in memory
-        tokenizer   : tokenizer object already in memory
-        text_column : name of text column
+        model       : finetuned HF model already in memory
+        tokenizer   : tokenizer used during training
         """
+
         self.df = df.copy()
         self.texts = df[text_column].tolist()
-        self.batch_size = batch_size
-        self.max_length = max_length
 
-        # MUST use in-memory model + tokenizer
         self.model = model
         self.tokenizer = tokenizer
 
-        # device
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.model.to(self.device).eval()
+        self.batch_size = batch_size
+        self.max_length = max_length
 
-        # internal state
+        # Set device
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model.to(self.device)
+        self.model.eval()
+
+        # Placeholders
         self.embeddings = None
         self.coords = None
         self.labels = None
         self.cluster_keywords = None
 
-        # compute embeddings from the provided model
+        # Auto-run embedding computation
         self._compute_embeddings()
 
 
-    # -----------------------------------------------------
-    # Compute embeddings from the in-memory model
-    # -----------------------------------------------------
+    # ---------------------------------------------------------
+    # Compute embeddings using CLS token
+    # ---------------------------------------------------------
     def _compute_embeddings(self):
-        all_embeddings = []
+        print("🔍 Computing embeddings from in-memory model…")
 
-        for i in range(0, len(self.texts), self.batch_size):
-            batch = self.texts[i : i + self.batch_size]
+        all_embs = []
+        texts = self.texts
+
+        for i in range(0, len(texts), self.batch_size):
+            batch = texts[i : i + self.batch_size]
 
             tokens = self.tokenizer(
                 batch,
@@ -74,52 +84,24 @@ class EdgeCaseAnalyzer:
                 truncation=True,
                 max_length=self.max_length,
                 return_tensors="pt",
-            )
-            # move tensors to device
-            tokens = {k: v.to(self.device) for k, v in tokens.items()}
+            ).to(self.device)
 
             with torch.no_grad():
-                # Try calling model with keyword args; if wrapper rejects some keys,
-                # fall back to calling with (input_ids, attention_mask).
-                try:
-                    outputs = self.model(**tokens)
-                except TypeError:
-                    # Common wrapper signature used elsewhere: model(input_ids, attention_mask)
-                    input_ids = tokens.get("input_ids")
-                    attention_mask = tokens.get("attention_mask", None)
-                    if attention_mask is not None:
-                        outputs = self.model(input_ids, attention_mask)
-                    else:
-                        outputs = self.model(input_ids)
+                out = self.model(**tokens)
 
-            # Extract CLS/pooled embeddings in a robust way:
-            if hasattr(outputs, "last_hidden_state"):
-                cls_emb = outputs.last_hidden_state[:, 0, :].cpu().numpy()
-            elif hasattr(outputs, "pooler_output"):
-                cls_emb = outputs.pooler_output.cpu().numpy()
-            elif isinstance(outputs, torch.Tensor):
-                # some wrappers return logits tensor; try to get backbone embeddings
-                if hasattr(self.model, "base_model"):
-                    base_out = self.model.base_model(input_ids=input_ids, attention_mask=tokens.get("attention_mask"))
-                    cls_emb = base_out.last_hidden_state[:, 0, :].cpu().numpy()
-                elif hasattr(self.model, "transformer"):
-                    base_out = self.model.transformer(input_ids=input_ids, attention_mask=tokens.get("attention_mask"))
-                    cls_emb = base_out.last_hidden_state[:, 0, :].cpu().numpy()
-                else:
-                    # fallback: use input token embeddings (first token)
-                    emb = self.model.get_input_embeddings()(input_ids)
-                    cls_emb = emb[:, 0, :].detach().cpu().numpy()
-            else:
-                raise RuntimeError("Unable to extract embeddings from model output.")
+            # DETACH FIX HERE
+            cls_emb = out.last_hidden_state[:, 0, :].detach().cpu().numpy()
 
-            all_embeddings.append(cls_emb)
+            all_embs.append(cls_emb)
 
-        self.embeddings = np.vstack(all_embeddings)
+        self.embeddings = np.vstack(all_embs)
+        print(f"✔ Embeddings computed: shape = {self.embeddings.shape}")
 
 
-    # -----------------------------------------------------
-    # Auto-label clusters
-    # -----------------------------------------------------
+
+    # ---------------------------------------------------------
+    # Extract keyword labels for each cluster
+    # ---------------------------------------------------------
     def auto_label_clusters(self, top_k=8):
 
         labels = self.labels
@@ -134,38 +116,43 @@ class EdgeCaseAnalyzer:
 
             words = []
             for t in cluster_texts:
-                words.extend(re.findall(r"[A-Za-z]+", t.lower()))
+                w = re.findall(r"[A-Za-z]+", t.lower())
+                words.extend(w)
 
-            words = [w for w in words if w not in spacy_stopwords and len(w) > 2]
+            words = [
+                w for w in words
+                if w not in spacy_stopwords and len(w) > 2
+            ]
 
             if not words:
                 cluster_labels[cid] = "(no keywords)"
             else:
-                top = [w for w, c in Counter(words).most_common(top_k)]
-                cluster_labels[cid] = ", ".join(top)
+                top_words = [w for w, c in Counter(words).most_common(top_k)]
+                cluster_labels[cid] = ", ".join(top_words)
 
         self.cluster_keywords = cluster_labels
         return cluster_labels
 
 
-    # -----------------------------------------------------
-    # UMAP + HDBSCAN clustering
-    # -----------------------------------------------------
+
+    # ---------------------------------------------------------
+    # Run UMAP + HDBSCAN clustering
+    # ---------------------------------------------------------
     def run_clustering(self, min_cluster_size=10, n_neighbors=20, min_dist=0.05):
 
-        norm = StandardScaler().fit_transform(self.embeddings)
+        normed = StandardScaler().fit_transform(self.embeddings)
 
         reducer = umap.UMAP(
             n_neighbors=n_neighbors,
             min_dist=min_dist,
             metric="cosine",
-            random_state=42
+            random_state=42,
         )
-        coords = reducer.fit_transform(norm)
+        coords = reducer.fit_transform(normed)
 
         clusterer = hdbscan.HDBSCAN(
             min_cluster_size=min_cluster_size,
-            metric="euclidean"
+            metric="euclidean",
         )
         labels = clusterer.fit_predict(coords)
 
@@ -175,32 +162,31 @@ class EdgeCaseAnalyzer:
         return labels, coords
 
 
-    # -----------------------------------------------------
-    # Embedding distance score
-    # -----------------------------------------------------
+
+    # ---------------------------------------------------------
+    # Distance-to-centroid score with noise fallback
+    # ---------------------------------------------------------
     def compute_distance_scores(self):
+
         coords = self.coords
         labels = self.labels
 
-        # clusters except noise
-        unique = [c for c in set(labels) if c != -1]
+        unique = [cid for cid in set(labels) if cid != -1]
 
-        # ----------------------------------------------------
-        # FIX: if no clusters found, return zeros
-        # ----------------------------------------------------
+        # SAFETY FIX: no clusters found
         if len(unique) == 0:
-            print("No clusters found by HDBSCAN — treating all samples as noise.")
-            dist = np.ones(len(self.df))  # or zeros, but ones increases score
+            print("⚠️ HDBSCAN found NO clusters — treating everything as noise.")
+            dist = np.ones(len(coords))
             self.df["dist_score"] = dist
             return dist
 
-        # normal case
+        # compute centroids
         centroids = np.array([
             coords[labels == cid].mean(axis=0)
             for cid in unique
         ])
 
-        # ensure centroids is 2D
+        # ensure correct shape
         if centroids.ndim == 1:
             centroids = centroids.reshape(1, -1)
 
@@ -209,41 +195,45 @@ class EdgeCaseAnalyzer:
         return dist
 
 
-    # -----------------------------------------------------
+
+    # ---------------------------------------------------------
     # Structural anomaly score
-    # -----------------------------------------------------
+    # ---------------------------------------------------------
     def compute_structural_scores(self):
 
-        if not all(k in self.df.columns
-                   for k in ["token_count", "max_dep_depth", "clause_count"]):
+        if not all(col in self.df.columns
+                   for col in ["token_count", "max_dep_depth", "clause_count"]):
 
             self.df["token_count"] = [len(t.split()) for t in self.texts]
-            self.df["max_dep_depth"] = self.df["token_count"]  # placeholder
+            self.df["max_dep_depth"] = self.df["token_count"]
             self.df["clause_count"] = 1
 
-        cols = ["token_count", "max_dep_depth", "clause_count"]
-        score = self.df[cols].rank(pct=True).mean(axis=1)
+        structural_cols = ["token_count", "max_dep_depth", "clause_count"]
 
-        self.df["struct_score"] = score
-        return score
+        structural = self.df[structural_cols].rank(pct=True).mean(axis=1)
+        self.df["struct_score"] = structural
+
+        return structural
 
 
-    # -----------------------------------------------------
+
+    # ---------------------------------------------------------
     # Probability-aware edge-case score
-    # -----------------------------------------------------
+    # ---------------------------------------------------------
     def compute_edge_scores(self):
 
         dist = self.compute_distance_scores()
         struct = self.compute_structural_scores()
 
-        # defaults
-        low_conf = np.zeros(len(self.df))
-        wrong_conf = np.zeros(len(self.df))
-        true_conf_score = np.zeros(len(self.df))
+        df = self.df
 
-        if "predicted_prob" in self.df.columns and "true_prob" in self.df.columns:
-            pred_conf = self.df["predicted_prob"]
-            true_conf = self.df["true_prob"]
+        low_conf = np.zeros(len(df))
+        wrong_conf = np.zeros(len(df))
+        true_conf_score = np.zeros(len(df))
+
+        if "predicted_prob" in df.columns and "true_prob" in df.columns:
+            pred_conf = df["predicted_prob"]
+            true_conf = df["true_prob"]
 
             low_conf = 1 - pred_conf
             wrong_conf = pred_conf
@@ -252,39 +242,44 @@ class EdgeCaseAnalyzer:
         noise = (self.labels == -1).astype(float)
 
         combined = (
-            (dist / dist.max()) * 0.30 +
-            struct * 0.20 +
-            noise * 0.30 +
-            low_conf * 0.15 +
-            wrong_conf * 0.15 +
-            true_conf_score * 0.10
+              (dist / dist.max()) * 0.30
+            + struct * 0.20
+            + noise * 0.30
+            + low_conf * 0.15
+            + wrong_conf * 0.15
+            + true_conf_score * 0.10
         )
 
         self.df["edge_score"] = combined
         return combined
 
 
-    # -----------------------------------------------------
+
+    # ---------------------------------------------------------
     # Top N edge cases
-    # -----------------------------------------------------
+    # ---------------------------------------------------------
     def get_top_edge_cases(self, n=20):
+
         if "edge_score" not in self.df.columns:
             self.compute_edge_scores()
 
         return self.df.sort_values("edge_score", ascending=False).head(n)
 
 
-    # -----------------------------------------------------
-    # Tiny clusters
-    # -----------------------------------------------------
+
+    # ---------------------------------------------------------
+    # Tiny semantic outlier clusters
+    # ---------------------------------------------------------
     def get_tiny_clusters(self, min_size=20):
+
         counts = Counter(self.labels)
         return [cid for cid, c in counts.items() if 0 < cid != -1 and c < min_size]
 
 
-    # -----------------------------------------------------
-    # Representative examples per cluster
-    # -----------------------------------------------------
+
+    # ---------------------------------------------------------
+    # Representative examples
+    # ---------------------------------------------------------
     def get_cluster_centroid_texts(self, cid, k=5):
 
         coords = self.coords
@@ -299,39 +294,61 @@ class EdgeCaseAnalyzer:
         return [self.texts[i] for i in np.where(labels == cid)[0][idx]]
 
 
-    # -----------------------------------------------------
-    # Plot clusters (returns figure for W&B)
-    # -----------------------------------------------------
+
+    # ---------------------------------------------------------
+    # Plotting — figure returned for W&B logging
+    # ---------------------------------------------------------
     def plot_clusters(self, title="Edge Case Clusters"):
 
+        if self.coords is None or self.labels is None:
+            raise RuntimeError("Run clustering first.")
+
         fig, ax = plt.subplots(figsize=(10, 8))
+
         sc = ax.scatter(
             self.coords[:, 0],
             self.coords[:, 1],
             c=self.labels,
             cmap="Spectral",
-            s=10,
-            alpha=0.85
+            alpha=0.85,
+            s=10
         )
+
         ax.set_title(title)
         plt.colorbar(sc, ax=ax)
+
         return fig
 
 
-    # -----------------------------------------------------
-    # Full pipeline
-    # -----------------------------------------------------
+
+    # ---------------------------------------------------------
+    # FULL PIPELINE WRAPPER
+    # ---------------------------------------------------------
     def run_full_analysis(self, top_n=20, tiny_threshold=20, title="Edge Case Clusters"):
 
+        # Step 1: clustering
         self.run_clustering()
+
+        # Step 2: label clusters
         self.auto_label_clusters()
+
+        # Step 3: compute probability + structure + distance scoring
         self.compute_edge_scores()
 
+        # Step 4: retrieve edge cases
+        top_edges = self.get_top_edge_cases(top_n)
+
+        # Step 5: tiny clusters identification
+        tiny = self.get_tiny_clusters(tiny_threshold)
+
+        # Step 6: get figure to log to wandb
+        fig = self.plot_clusters(title)
+
         return {
-            "top_edge_cases": self.get_top_edge_cases(top_n),
-            "tiny_clusters": self.get_tiny_clusters(tiny_threshold),
+            "top_edge_cases": top_edges,
+            "tiny_clusters": tiny,
             "cluster_keywords": self.cluster_keywords,
             "coords": self.coords,
             "labels": self.labels,
-            "plot": self.plot_clusters(title)
+            "plot": fig,
         }
