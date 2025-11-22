@@ -11,6 +11,7 @@ import wandb
 from utils.logger import WandbLogger
 from transformers import AutoTokenizer
 import time
+import matplotlib.pyplot as plt
 
 from utils.misclassifications import EdgeCaseAnalyzer
 
@@ -378,6 +379,7 @@ class Trainer:
         # log to wandb
         if fig is not None:
                 wandb.log({"edge_case_plot": wandb.Image(fig)})
+                plt.close(fig)
 
         if isinstance(top_edge_cases, pd.DataFrame):
                 wandb.log({"top_edge_cases_table": wandb.Table(dataframe=top_edge_cases.reset_index(drop=True))})

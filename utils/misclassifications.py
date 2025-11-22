@@ -73,13 +73,45 @@ class EdgeCaseAnalyzer:
                 padding=True,
                 truncation=True,
                 max_length=self.max_length,
-                return_tensors="pt"
-            ).to(self.device)
+                return_tensors="pt",
+            )
+            # move tensors to device
+            tokens = {k: v.to(self.device) for k, v in tokens.items()}
 
             with torch.no_grad():
-                outputs = self.model(**tokens)
+                # Try calling model with keyword args; if wrapper rejects some keys,
+                # fall back to calling with (input_ids, attention_mask).
+                try:
+                    outputs = self.model(**tokens)
+                except TypeError:
+                    # Common wrapper signature used elsewhere: model(input_ids, attention_mask)
+                    input_ids = tokens.get("input_ids")
+                    attention_mask = tokens.get("attention_mask", None)
+                    if attention_mask is not None:
+                        outputs = self.model(input_ids, attention_mask)
+                    else:
+                        outputs = self.model(input_ids)
 
-            cls_emb = outputs.last_hidden_state[:, 0, :].cpu().numpy()
+            # Extract CLS/pooled embeddings in a robust way:
+            if hasattr(outputs, "last_hidden_state"):
+                cls_emb = outputs.last_hidden_state[:, 0, :].cpu().numpy()
+            elif hasattr(outputs, "pooler_output"):
+                cls_emb = outputs.pooler_output.cpu().numpy()
+            elif isinstance(outputs, torch.Tensor):
+                # some wrappers return logits tensor; try to get backbone embeddings
+                if hasattr(self.model, "base_model"):
+                    base_out = self.model.base_model(input_ids=input_ids, attention_mask=tokens.get("attention_mask"))
+                    cls_emb = base_out.last_hidden_state[:, 0, :].cpu().numpy()
+                elif hasattr(self.model, "transformer"):
+                    base_out = self.model.transformer(input_ids=input_ids, attention_mask=tokens.get("attention_mask"))
+                    cls_emb = base_out.last_hidden_state[:, 0, :].cpu().numpy()
+                else:
+                    # fallback: use input token embeddings (first token)
+                    emb = self.model.get_input_embeddings()(input_ids)
+                    cls_emb = emb[:, 0, :].detach().cpu().numpy()
+            else:
+                raise RuntimeError("Unable to extract embeddings from model output.")
+
             all_embeddings.append(cls_emb)
 
         self.embeddings = np.vstack(all_embeddings)
