@@ -12,6 +12,7 @@ data:
   test_size: 0.2
   val_size: 0.1
   pandas_kwargs: {}
+  label_map: {'up': 0, 'stable': 1, 'down': 2}
 
 # Weights & Biases configuration
 wandb:

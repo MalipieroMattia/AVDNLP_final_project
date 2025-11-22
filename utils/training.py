@@ -1,3 +1,4 @@
+import pandas as pd
 import torch
 import torch.nn as nn
 from torch.optim import AdamW
@@ -7,6 +8,7 @@ from pathlib import Path
 from datetime import datetime
 from sklearn.metrics import confusion_matrix
 from utils.logger import WandbLogger
+from transformers import AutoTokenizer
 
 
 class Trainer:
@@ -235,8 +237,8 @@ class Trainer:
         print(f"Best Val Accuracy: {100 * self.best_val_acc:.2f}%")
         print(f"{'=' * 60}\n")
 
-    def test(self):
-        """Evaluate on test set."""
+    def test(self, save_misclassifications=True):
+        """Evaluate on test set and optionally save misclassified examples."""
         print("\n" + "=" * 60)
         print("Testing on Test Set")
         print("=" * 60 + "\n")
@@ -247,6 +249,7 @@ class Trainer:
         total = 0
         all_predictions = []
         all_labels = []
+        all_input_ids = []  # store for error analysis
 
         with torch.no_grad():
             pbar = tqdm(self.test_loader, desc="Testing")
@@ -264,6 +267,7 @@ class Trainer:
 
                 all_predictions.extend(predictions.cpu().numpy())
                 all_labels.extend(labels.cpu().numpy())
+                all_input_ids.extend(input_ids.cpu().numpy())  # save for decoding
                 total_loss += loss.item()
 
                 pbar.set_postfix(
@@ -286,15 +290,122 @@ class Trainer:
         # Log to W&B
         cm = confusion_matrix(all_labels, all_predictions)
         self.logger.log_metrics({"test/loss": avg_loss, "test/acc": accuracy})
-        self.logger.log_confusion_matrix(cm, class_names=["entailment", "neutral", "contradiction"])
+
+        # get class names from config
+        label_map = self.config["data"].get("label_map", {})
+        if label_map:
+            class_names = [k for k, v in sorted(label_map.items(), key=lambda x: x[1])]
+        else:
+            class_names = None
+        self.logger.log_confusion_matrix(cm, class_names=class_names)
+
+        # save misclassifications for error analysis
+        if save_misclassifications:
+            self._save_misclassifications(all_input_ids, all_labels, all_predictions)
 
         return avg_loss, accuracy, all_predictions, all_labels
+
+    def _save_misclassifications(self, input_ids, true_labels, predictions):
+        """
+        Save misclassified examples to CSV and log to Wandb.
+
+        Args:
+            input_ids: List of tokenized inputs
+            true_labels: List of ground truth labels
+            predictions: List of predicted labels
+        """
+
+        # Find misclassified indices
+        misclass_indices = [
+            i
+            for i, (true, pred) in enumerate(zip(true_labels, predictions))
+            if true != pred
+        ]
+
+        if len(misclass_indices) == 0:
+            print("\n No misclassifications found.")
+            return
+
+        print(
+            f"\n Found {len(misclass_indices)} misclassifications, ({100 * len(misclass_indices) / len(true_labels):.1f}% of test set)"
+        )
+
+        # get tokenizer to decode text
+        model_name = self.config["model"]["name"]
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+
+        # label mapping (update this based on your task)
+        label_names = self.config["data"].get("label_map", {})
+        if label_names:
+            # reverse the mapping
+            label_names = {v: k for k, v in label_names.items()}
+        else:
+            label_names = {0: "class_0", 1: "class_1", 2: "class_2"}
+
+        # collect misclassified examples
+        errors = []
+        for idx in misclass_indices:
+            # Decode the tokenized text
+            text = tokenizer.decode(input_ids[idx], skip_special_tokens=True)
+
+            errors.append(
+                {
+                    "text": text,
+                    "true_label": label_names.get(
+                        true_labels[idx], str(true_labels[idx])
+                    ),
+                    "predicted_label": label_names.get(
+                        predictions[idx], str(predictions[idx])
+                    ),
+                    "true_label_id": true_labels[idx],
+                    "predicted_label_id": predictions[idx],
+                }
+            )
+
+        # create DataFrame
+        df_errors = pd.DataFrame(errors)
+
+        # save locally
+        run_name = self.config["wandb"]["run_name"]
+        error_file = self.checkpoint_dir / f"misclassifications_{run_name}.csv"
+        df_errors.to_csv(error_file, index=False)
+        print(f"Saved misclassifications to: {error_file}")
+
+        # log to Wandb as artifact
+        if self.logger.run:
+            import wandb
+
+            artifact = wandb.Artifact(
+                name=f"misclassifications_{run_name}",
+                type="error_analysis",
+                description=f"Misclassified examples from {run_name}",
+            )
+            artifact.add_file(str(error_file))
+            wandb.log_artifact(artifact)
+            print(f"Uploaded to Wandb as artifact")
+
+        # also log summary stats
+        self.logger.log_metrics(
+            {
+                "test/num_misclassifications": len(misclass_indices),
+                "test/misclassification_rate": len(misclass_indices) / len(true_labels),
+            }
+        )
+
+        print(f"Error analysis complete!")
 
     def _print_class_metrics(self, labels, predictions):
         """Print per-class precision, recall, F1."""
         from sklearn.metrics import classification_report
 
-        class_names = ["up", "stable", "down"]
+        # get class names from config or use defaults
+        label_map = self.config["data"].get("label_map", {})
+        if label_map:
+            # sort by value to get correct order
+            class_names = [k for k, v in sorted(label_map.items(), key=lambda x: x[1])]
+        else:
+            class_names = ["class_0", "class_1", "class_2"]
+
         report = classification_report(labels, predictions, target_names=class_names)
         print("\nClassification Report:")
         print(report)
