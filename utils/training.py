@@ -9,6 +9,7 @@ from datetime import datetime
 from sklearn.metrics import confusion_matrix
 from utils.logger import WandbLogger
 from transformers import AutoTokenizer
+import time
 
 
 class Trainer:
@@ -52,6 +53,9 @@ class Trainer:
         self.best_val_loss = float("inf")
         self.best_val_acc = 0.0
 
+        # GPU metrics tracking
+        self.gpu_metrics = {"peak_memory_gb": 0, "epoch_times": [], "throughput": []}
+
         # Initialize W&B logger
         run_name = config.get(
             "run_name", f"run_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
@@ -64,6 +68,8 @@ class Trainer:
         total_loss = 0
         correct = 0
         total = 0
+
+        epoch_start = time.time()
 
         pbar = tqdm(self.train_loader, desc="Training")
         for batch in pbar:
@@ -93,6 +99,18 @@ class Trainer:
             # Update progress bar
             pbar.set_postfix(
                 {"loss": f"{loss.item():.4f}", "acc": f"{100 * correct / total:.2f}%"}
+            )
+
+        # track epoch time and throughput
+        epoch_time = time.time() - epoch_start
+        self.gpu_metrics["epoch_times"].append(epoch_time)
+        self.gpu_metrics["throughput"].append(total / epoch_time)
+
+        # track GPU memory
+        if torch.cuda.is_available():
+            peak_mem = torch.cuda.max_memory_allocated(self.device) / 1e9
+            self.gpu_metrics["peak_memory_gb"] = max(
+                self.gpu_metrics["peak_memory_gb"], peak_mem
             )
 
         avg_loss = total_loss / len(self.train_loader)
@@ -197,6 +215,11 @@ class Trainer:
                     "accuracy/train": train_acc,  # Use 'accuracy/' prefix
                     "accuracy/val": val_acc,  # Use 'accuracy/' prefix
                     "learning_rate": current_lr,
+                    "gpu/memory_gb": self.gpu_metrics["peak_memory_gb"],
+                    "gpu/epoch_time_sec": self.gpu_metrics["epoch_times"][-1],
+                    "gpu/throughput_samples_per_sec": self.gpu_metrics["throughput"][
+                        -1
+                    ],
                 },
                 step=epoch + 1,
             )
@@ -231,10 +254,31 @@ class Trainer:
         )
         self.logger.log_learning_rate(learning_rates)
 
+        # log GPU metrics summary
+        avg_epoch_time = sum(self.gpu_metrics["epoch_times"]) / len(
+            self.gpu_metrics["epoch_times"]
+        )
+        avg_throughput = sum(self.gpu_metrics["throughput"]) / len(
+            self.gpu_metrics["throughput"]
+        )
+        total_time = sum(self.gpu_metrics["epoch_times"])
+
+        self.logger.log_metrics(
+            {
+                "gpu/peak_memory_gb": self.gpu_metrics["peak_memory_gb"],
+                "gpu/avg_epoch_time_sec": avg_epoch_time,
+                "gpu/avg_throughput_samples_per_sec": avg_throughput,
+                "gpu/total_training_time_sec": total_time,
+            }
+        )
+
         print(f"\n{'=' * 60}")
         print("Training Complete!")
         print(f"Best Val Loss: {self.best_val_loss:.4f}")
         print(f"Best Val Accuracy: {100 * self.best_val_acc:.2f}%")
+        print(f"GPU Peak Memory: {self.gpu_metrics['peak_memory_gb']:.2f} GB")
+        print(f"Avg Throughput: {avg_throughput:.1f} samples/sec")
+        print(f"Total Training Time: {total_time:.1f}s ({total_time / 60:.1f} min)")
         print(f"{'=' * 60}\n")
 
     def test(self, save_misclassifications=True):

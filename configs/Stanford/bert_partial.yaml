@@ -27,7 +27,7 @@ model:
   model_type: "bert"
   use_lora: false
   freeze_strategy: "partial"  # unfreeze top N layers
-  num_frozen_layers: 4  # number of top layers to unfreeze (adjust as needed)
+  num_frozen_layers: 2  # number of top layers to unfreeze (reduced for fair comparison with LoRA)
   max_len: 256
   dropout_rate: 0.5
   checkpoint_dir: "checkpoints"
@@ -35,9 +35,9 @@ model:
 
 # Training settings
 training:
-  batch_size: 8
+  batch_size: 4  # reduced to match LoRA's memory budget
   num_epochs: 3
-  learning_rate: 0.00001  # slightly higher than full fine-tuning
+  learning_rate: 0.00003  # increased slightly since we're training fewer layers
   dropout_rate: 0.5
   weight_decay: 0.1
   warmup_ratio: 0.1
