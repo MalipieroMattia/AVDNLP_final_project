@@ -392,7 +392,7 @@ class Trainer:
             }
         )
 
-        print(f"Error analysis complete!")
+        print(f"Error analysis complete")
 
     def _print_class_metrics(self, labels, predictions):
         """Print per-class precision, recall, F1."""
