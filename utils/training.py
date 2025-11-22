@@ -7,9 +7,12 @@ from tqdm import tqdm
 from pathlib import Path
 from datetime import datetime
 from sklearn.metrics import confusion_matrix
+import wandb
 from utils.logger import WandbLogger
 from transformers import AutoTokenizer
 import time
+
+from utils.misclassifications import EdgeCaseAnalyzer
 
 
 class Trainer:
@@ -294,6 +297,8 @@ class Trainer:
         all_predictions = []
         all_labels = []
         all_input_ids = []  # store for error analysis
+        all_preds_probs = []  # collect predicted-class probabilities
+        all_true_probs = []   # collect true-class probabilities
 
         with torch.no_grad():
             pbar = tqdm(self.test_loader, desc="Testing")
@@ -305,13 +310,22 @@ class Trainer:
                 logits = self.model(input_ids, attention_mask)
                 loss = self.criterion(logits, labels)
 
-                predictions = torch.argmax(logits, dim=1)
+                # probabilities
+                probs = torch.softmax(logits, dim=1)
+                predictions = torch.argmax(probs, dim=1)
+
+                # grab predicted-class prob and true-class prob
+                pred_probs = probs[torch.arange(predictions.size(0)), predictions]
+                true_probs = probs[torch.arange(labels.size(0)), labels]
+
                 correct += (predictions == labels).sum().item()
                 total += labels.size(0)
 
                 all_predictions.extend(predictions.cpu().numpy())
                 all_labels.extend(labels.cpu().numpy())
                 all_input_ids.extend(input_ids.cpu().numpy())  # save for decoding
+                all_preds_probs.extend(pred_probs.cpu().numpy())
+                all_true_probs.extend(true_probs.cpu().numpy())
                 total_loss += loss.item()
 
                 pbar.set_postfix(
@@ -345,11 +359,59 @@ class Trainer:
 
         # save misclassifications for error analysis
         if save_misclassifications:
-            self._save_misclassifications(all_input_ids, all_labels, all_predictions)
+            df_error = self._save_misclassifications(
+                all_input_ids, all_labels, all_predictions, all_preds_probs, all_true_probs
+            )
 
+        model_name = self.config["model"]["name"]
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        edgeCaseAnalyzer = EdgeCaseAnalyzer(df_error, self.model, tokenizer)
+        analysis = edgeCaseAnalyzer.run_full_analysis()
+       
+        top_edge_cases = analysis.get("top_edge_cases")
+        tiny_clusters = analysis.get("tiny_clusters")
+        cluster_keywords = analysis.get("cluster_keywords")
+        coords = analysis.get("coords")
+        labels = analysis.get("labels")
+        fig = analysis.get("plot")
+
+        # log to wandb
+        if fig is not None:
+                wandb.log({"edge_case_plot": wandb.Image(fig)})
+
+        if isinstance(top_edge_cases, pd.DataFrame):
+                wandb.log({"top_edge_cases_table": wandb.Table(dataframe=top_edge_cases.reset_index(drop=True))})
+
+        if coords is not None and labels is not None and isinstance(df_error, pd.DataFrame) and "text" in df_error.columns:
+                rows = []
+                for i, (xy, lbl, txt) in enumerate(zip(coords, labels, df_error["text"])):
+                    row = {
+                        "text": txt,
+                        "x": float(xy[0]),
+                        "y": float(xy[1]),
+                        "label": int(lbl),
+                    }
+                    if "edge_score" in df_error.columns:
+                        row["edge_score"] = float(df_error.iloc[i].get("edge_score", float("nan")))
+                    if "predicted_prob" in df_error.columns:
+                        row["predicted_prob"] = float(df_error.iloc[i].get("predicted_prob", float("nan")))
+                    if "true_prob" in df_error.columns:
+                        row["true_prob"] = float(df_error.iloc[i].get("true_prob", float("nan")))
+                    rows.append(row)
+                if rows:
+                    cols = list(rows[0].keys())
+                    table_rows = [[r[c] for c in cols] for r in rows]
+                    wandb_table = wandb.Table(columns=cols, data=table_rows)
+                    wandb.log({"edge_cases_coords_table": wandb_table})
+
+        # 4) cluster keywords (dict) -> wandb.Table
+        if isinstance(cluster_keywords, dict):
+            kw_rows = [[int(cid), kws] for cid, kws in cluster_keywords.items()]
+            kw_table = wandb.Table(columns=["cluster_id", "keywords"], data=kw_rows)
+            wandb.log({"cluster_keywords": kw_table})
         return avg_loss, accuracy, all_predictions, all_labels
 
-    def _save_misclassifications(self, input_ids, true_labels, predictions):
+    def _save_misclassifications(self, input_ids, true_labels, predictions, pred_probs=None, true_probs=None):
         """
         Save misclassified examples to CSV and log to Wandb.
 
@@ -357,6 +419,8 @@ class Trainer:
             input_ids: List of tokenized inputs
             true_labels: List of ground truth labels
             predictions: List of predicted labels
+            pred_probs: (optional) List of predicted-class probabilities
+            true_probs: (optional) List of true-class probabilities
         """
 
         # Find misclassified indices
@@ -395,14 +459,12 @@ class Trainer:
             errors.append(
                 {
                     "text": text,
-                    "true_label": label_names.get(
-                        true_labels[idx], str(true_labels[idx])
-                    ),
-                    "predicted_label": label_names.get(
-                        predictions[idx], str(predictions[idx])
-                    ),
+                    "true_label": label_names.get(true_labels[idx], str(true_labels[idx])),
+                    "predicted_label": label_names.get(predictions[idx], str(predictions[idx])),
                     "true_label_id": true_labels[idx],
                     "predicted_label_id": predictions[idx],
+                    "predicted_prob": float(pred_probs[idx]) if pred_probs is not None else None,
+                    "true_prob": float(true_probs[idx]) if true_probs is not None else None,
                 }
             )
 
@@ -437,6 +499,7 @@ class Trainer:
         )
 
         print(f"Error analysis complete")
+        return df_errors
 
     def _print_class_metrics(self, labels, predictions):
         """Print per-class precision, recall, F1."""
