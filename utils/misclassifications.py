@@ -179,15 +179,30 @@ class EdgeCaseAnalyzer:
     # Embedding distance score
     # -----------------------------------------------------
     def compute_distance_scores(self):
-
         coords = self.coords
         labels = self.labels
+
+        # clusters except noise
         unique = [c for c in set(labels) if c != -1]
 
+        # ----------------------------------------------------
+        # FIX: if no clusters found, return zeros
+        # ----------------------------------------------------
+        if len(unique) == 0:
+            print("No clusters found by HDBSCAN — treating all samples as noise.")
+            dist = np.ones(len(self.df))  # or zeros, but ones increases score
+            self.df["dist_score"] = dist
+            return dist
+
+        # normal case
         centroids = np.array([
             coords[labels == cid].mean(axis=0)
             for cid in unique
         ])
+
+        # ensure centroids is 2D
+        if centroids.ndim == 1:
+            centroids = centroids.reshape(1, -1)
 
         _, dist = pairwise_distances_argmin_min(coords, centroids)
         self.df["dist_score"] = dist
