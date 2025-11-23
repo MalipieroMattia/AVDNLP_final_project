@@ -93,11 +93,12 @@ class EdgeCaseAnalyzer:
                 # ⭐ CALL THE ENCODER DIRECTLY INSTEAD OF model()
                 for name, module in self.model.named_children():
                     print("Child:", name, "→", type(module))
-                encoder_out = self.model.encoder(
-                    input_ids=tokens["input_ids"],
-                    attention_mask=tokens["attention_mask"],
-                    return_dict=True
+                encoder_out = self.model.transformer(
+                input_ids=tokens["input_ids"],
+                attention_mask=tokens["attention_mask"],
+                return_dict=True
                 )
+                
 
             # extract CLS embedding
             cls_emb = encoder_out.last_hidden_state[:, 0, :].detach().cpu().numpy()
