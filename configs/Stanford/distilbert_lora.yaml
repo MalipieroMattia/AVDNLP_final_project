@@ -43,7 +43,7 @@ model:
 
 # Training settings
 training:
-  batch_size: 16  # increased to use more memory (baseline)
+  batch_size: 8  # same as partial FT for fair comparison
   num_epochs: 3
   learning_rate: 0.0001  # higher LR for LoRA
   dropout_rate: 0.5

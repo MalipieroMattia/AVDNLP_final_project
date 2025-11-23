@@ -36,7 +36,7 @@ model:
 
 # Training settings
 training:
-  batch_size: 4  # reduced to match LoRA's memory budget
+  batch_size: 8  # same as LoRA for fair comparison
   num_epochs: 3
   learning_rate: 0.00005  # increased since we're training fewer layers
   dropout_rate: 0.5
