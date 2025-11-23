@@ -86,21 +86,26 @@ class EdgeCaseAnalyzer:
                 return_tensors="pt"
             )
 
-            # Remove token_type_ids if present
             tokens.pop("token_type_ids", None)
-
-            tokens = tokens.to(self.device)
+            tokens = {k: v.to(self.device) for k, v in tokens.items()}
 
             with torch.no_grad():
-                out = self.model(**tokens)
+                # ⭐ CALL THE ENCODER DIRECTLY INSTEAD OF model()
+                for name, module in self.model.named_children():
+                print("Child:", name, "→", type(module))
+                encoder_out = self.model.encoder(
+                    input_ids=tokens["input_ids"],
+                    attention_mask=tokens["attention_mask"],
+                    return_dict=True
+                )
 
-            # DETACH FIX HERE
-            cls_emb = out.last_hidden_state[:, 0, :].detach().cpu().numpy()
-
+            # extract CLS embedding
+            cls_emb = encoder_out.last_hidden_state[:, 0, :].detach().cpu().numpy()
             all_embs.append(cls_emb)
 
         self.embeddings = np.vstack(all_embs)
         print(f"✔ Embeddings computed: shape = {self.embeddings.shape}")
+
 
 
 
