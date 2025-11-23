@@ -73,6 +73,10 @@ class Trainer:
         correct = 0
         total = 0
 
+        # reset GPU memory stats at start of epoch for accurate measurement
+        if torch.cuda.is_available():
+            torch.cuda.reset_peak_memory_stats(self.device)
+
         epoch_start = time.time()
 
         pbar = tqdm(self.train_loader, desc="Training")
@@ -171,9 +175,24 @@ class Trainer:
         """Main training loop."""
         print(f"\n{'=' * 60}")
         print(f"Starting Training: {self.num_epochs} epochs")
+        print(f"{'=' * 60}")
         print(f"Device: {self.device}")
         print(f"Train samples: {len(self.train_loader.dataset)}")
         print(f"Val samples: {len(self.val_loader.dataset)}")
+        print(f"Batch size: {self.config['training']['batch_size']}")
+        print(f"Learning rate: {self.learning_rate}")
+
+        # Show model info
+        use_lora = self.config["model"].get("use_lora", False)
+        if use_lora:
+            lora_r = self.config["model"]["lora"].get("r", "N/A")
+            print(f"Method: LoRA (r={lora_r})")
+        else:
+            freeze_strategy = self.config["model"].get("freeze_strategy", "unknown")
+            num_frozen = self.config["model"].get("num_frozen_layers", "N/A")
+            print(
+                f"Method: {freeze_strategy} fine-tuning ({num_frozen} layers unfrozen)"
+            )
         print(f"{'=' * 60}\n")
 
         # Log model architecture info once
@@ -233,6 +252,8 @@ class Trainer:
             print(f"  Train Loss: {train_loss:.4f} | Train Acc: {100 * train_acc:.2f}%")
             print(f"  Val Loss:   {val_loss:.4f} | Val Acc:   {100 * val_acc:.2f}%")
             print(f"  Learning Rate: {current_lr:.2e}")
+            print(f"  Epoch Time: {self.gpu_metrics['epoch_times'][-1]:.1f}s")
+            print(f"  Peak Memory: {self.gpu_metrics['peak_memory_gb']:.2f} GB")
 
             # Save best model
             if val_loss < self.best_val_loss:
@@ -278,11 +299,14 @@ class Trainer:
 
         print(f"\n{'=' * 60}")
         print("Training Complete!")
+        print(f"{'=' * 60}")
         print(f"Best Val Loss: {self.best_val_loss:.4f}")
         print(f"Best Val Accuracy: {100 * self.best_val_acc:.2f}%")
+        print(f"\n--- Resource Usage ---")
         print(f"GPU Peak Memory: {self.gpu_metrics['peak_memory_gb']:.2f} GB")
         print(f"Avg Throughput: {avg_throughput:.1f} samples/sec")
         print(f"Total Training Time: {total_time:.1f}s ({total_time / 60:.1f} min)")
+        print(f"Avg Time per Epoch: {avg_epoch_time:.1f}s")
         print(f"{'=' * 60}\n")
 
     def test(self, save_misclassifications=True):
@@ -299,7 +323,7 @@ class Trainer:
         all_labels = []
         all_input_ids = []  # store for error analysis
         all_preds_probs = []  # collect predicted-class probabilities
-        all_true_probs = []   # collect true-class probabilities
+        all_true_probs = []  # collect true-class probabilities
 
         with torch.no_grad():
             pbar = tqdm(self.test_loader, desc="Testing")
@@ -361,14 +385,18 @@ class Trainer:
         # save misclassifications for error analysis
         if save_misclassifications:
             df_error = self._save_misclassifications(
-                all_input_ids, all_labels, all_predictions, all_preds_probs, all_true_probs
+                all_input_ids,
+                all_labels,
+                all_predictions,
+                all_preds_probs,
+                all_true_probs,
             )
 
         model_name = self.config["model"]["name"]
         tokenizer = AutoTokenizer.from_pretrained(model_name)
         edgeCaseAnalyzer = EdgeCaseAnalyzer(df_error, self.model, tokenizer)
         analysis = edgeCaseAnalyzer.run_full_analysis()
-       
+
         top_edge_cases = analysis.get("top_edge_cases")
         tiny_clusters = analysis.get("tiny_clusters")
         cluster_keywords = analysis.get("cluster_keywords")
@@ -378,33 +406,50 @@ class Trainer:
 
         # log to wandb
         if fig is not None:
-                wandb.log({"edge_case_plot": wandb.Image(fig)})
-                plt.close(fig)
+            wandb.log({"edge_case_plot": wandb.Image(fig)})
+            plt.close(fig)
 
         if isinstance(top_edge_cases, pd.DataFrame):
-                wandb.log({"top_edge_cases_table": wandb.Table(dataframe=top_edge_cases.reset_index(drop=True))})
+            wandb.log(
+                {
+                    "top_edge_cases_table": wandb.Table(
+                        dataframe=top_edge_cases.reset_index(drop=True)
+                    )
+                }
+            )
 
-        if coords is not None and labels is not None and isinstance(df_error, pd.DataFrame) and "text" in df_error.columns:
-                rows = []
-                for i, (xy, lbl, txt) in enumerate(zip(coords, labels, df_error["text"])):
-                    row = {
-                        "text": txt,
-                        "x": float(xy[0]),
-                        "y": float(xy[1]),
-                        "label": int(lbl),
-                    }
-                    if "edge_score" in df_error.columns:
-                        row["edge_score"] = float(df_error.iloc[i].get("edge_score", float("nan")))
-                    if "predicted_prob" in df_error.columns:
-                        row["predicted_prob"] = float(df_error.iloc[i].get("predicted_prob", float("nan")))
-                    if "true_prob" in df_error.columns:
-                        row["true_prob"] = float(df_error.iloc[i].get("true_prob", float("nan")))
-                    rows.append(row)
-                if rows:
-                    cols = list(rows[0].keys())
-                    table_rows = [[r[c] for c in cols] for r in rows]
-                    wandb_table = wandb.Table(columns=cols, data=table_rows)
-                    wandb.log({"edge_cases_coords_table": wandb_table})
+        if (
+            coords is not None
+            and labels is not None
+            and isinstance(df_error, pd.DataFrame)
+            and "text" in df_error.columns
+        ):
+            rows = []
+            for i, (xy, lbl, txt) in enumerate(zip(coords, labels, df_error["text"])):
+                row = {
+                    "text": txt,
+                    "x": float(xy[0]),
+                    "y": float(xy[1]),
+                    "label": int(lbl),
+                }
+                if "edge_score" in df_error.columns:
+                    row["edge_score"] = float(
+                        df_error.iloc[i].get("edge_score", float("nan"))
+                    )
+                if "predicted_prob" in df_error.columns:
+                    row["predicted_prob"] = float(
+                        df_error.iloc[i].get("predicted_prob", float("nan"))
+                    )
+                if "true_prob" in df_error.columns:
+                    row["true_prob"] = float(
+                        df_error.iloc[i].get("true_prob", float("nan"))
+                    )
+                rows.append(row)
+            if rows:
+                cols = list(rows[0].keys())
+                table_rows = [[r[c] for c in cols] for r in rows]
+                wandb_table = wandb.Table(columns=cols, data=table_rows)
+                wandb.log({"edge_cases_coords_table": wandb_table})
 
         # 4) cluster keywords (dict) -> wandb.Table
         if isinstance(cluster_keywords, dict):
@@ -413,7 +458,9 @@ class Trainer:
             wandb.log({"cluster_keywords": kw_table})
         return avg_loss, accuracy, all_predictions, all_labels
 
-    def _save_misclassifications(self, input_ids, true_labels, predictions, pred_probs=None, true_probs=None):
+    def _save_misclassifications(
+        self, input_ids, true_labels, predictions, pred_probs=None, true_probs=None
+    ):
         """
         Save misclassified examples to CSV and log to Wandb.
 
@@ -461,12 +508,20 @@ class Trainer:
             errors.append(
                 {
                     "text": text,
-                    "true_label": label_names.get(true_labels[idx], str(true_labels[idx])),
-                    "predicted_label": label_names.get(predictions[idx], str(predictions[idx])),
+                    "true_label": label_names.get(
+                        true_labels[idx], str(true_labels[idx])
+                    ),
+                    "predicted_label": label_names.get(
+                        predictions[idx], str(predictions[idx])
+                    ),
                     "true_label_id": true_labels[idx],
                     "predicted_label_id": predictions[idx],
-                    "predicted_prob": float(pred_probs[idx]) if pred_probs is not None else None,
-                    "true_prob": float(true_probs[idx]) if true_probs is not None else None,
+                    "predicted_prob": float(pred_probs[idx])
+                    if pred_probs is not None
+                    else None,
+                    "true_prob": float(true_probs[idx])
+                    if true_probs is not None
+                    else None,
                 }
             )
 
