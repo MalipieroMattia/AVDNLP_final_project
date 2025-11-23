@@ -267,15 +267,36 @@ class EdgeCaseAnalyzer:
 
 
     # ---------------------------------------------------------
-    # Top N edge cases
+    # Top N edge cases (now supports n=None => return all)
     # ---------------------------------------------------------
-    def get_top_edge_cases(self, n=20):
+    def get_top_edge_cases(self, n=None):
 
+        # ensure scores exist
         if "edge_score" not in self.df.columns:
             self.compute_edge_scores()
 
-        return self.df.sort_values("edge_score", ascending=False).head(n)
+        sorted_df = self.df.sort_values("edge_score", ascending=False)
 
+        # n is None => return all rows
+        if n is None:
+            return sorted_df
+        return sorted_df.head(n)
+
+
+
+    # ---------------------------------------------------------
+    # Export edge cases table (all or top-n) to CSV or return df
+    # ---------------------------------------------------------
+    def export_edge_cases(self, filepath=None, n=None):
+        """
+        filepath : if provided, writes CSV to path
+        n        : if None -> export all, otherwise export top-n
+        """
+        df_out = self.get_top_edge_cases(n=n)
+
+        if filepath:
+            df_out.to_csv(filepath, index=False)
+        return df_out
 
 
     # ---------------------------------------------------------
@@ -335,7 +356,7 @@ class EdgeCaseAnalyzer:
     # ---------------------------------------------------------
     # FULL PIPELINE WRAPPER
     # ---------------------------------------------------------
-    def run_full_analysis(self, top_n=20, tiny_threshold=20, title="Edge Case Clusters"):
+    def run_full_analysis(self, top_n=None, tiny_threshold=20, title="Edge Case Clusters"):
 
         # Step 1: clustering
         self.run_clustering()
