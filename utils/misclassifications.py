@@ -92,7 +92,7 @@ class EdgeCaseAnalyzer:
             with torch.no_grad():
                 # ⭐ CALL THE ENCODER DIRECTLY INSTEAD OF model()
                 for name, module in self.model.named_children():
-                print("Child:", name, "→", type(module))
+                    print("Child:", name, "→", type(module))
                 encoder_out = self.model.encoder(
                     input_ids=tokens["input_ids"],
                     attention_mask=tokens["attention_mask"],
