@@ -83,8 +83,13 @@ class EdgeCaseAnalyzer:
                 padding=True,
                 truncation=True,
                 max_length=self.max_length,
-                return_tensors="pt",
-            ).to(self.device)
+                return_tensors="pt"
+            )
+
+            # Remove token_type_ids if present
+            tokens.pop("token_type_ids", None)
+
+            tokens = tokens.to(self.device)
 
             with torch.no_grad():
                 out = self.model(**tokens)
