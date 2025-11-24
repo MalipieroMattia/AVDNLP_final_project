@@ -42,7 +42,7 @@ model:
 
 # Training settings
 training:
-  batch_size: 6  # reduced to match partial FT memory (~1.2 GB)
+  batch_size: 8  # standard batch size for fair comparison
   num_epochs: 3
   learning_rate: 0.0001  # higher LR for LoRA (10x higher than full fine-tuning)
   dropout_rate: 0.5
