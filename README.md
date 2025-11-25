@@ -5,7 +5,7 @@
 <details>
   <summary>Sample Preview</summary>
 
-We use the **Stanford Natural Language Inference (SNLI) Corpus**, a benchmark dataset for natural language understanding.  
+We use the [**Stanford Natural Language Inference (SNLI) Corpus**](https://nlp.stanford.edu/projects/snli/#:~:text=The%20Stanford%20Natural%20Language%20Inference%20%28SNLI%29%20corpus%20%28version,classification%20with%20the%20labels%20entailment%2C%20contradiction%2C%20and%20neutral.), a benchmark dataset for natural language understanding.  
 It consists of sentence pairs labeled as **entailment**, **contradiction**, or **neutral**, making it ideal for evaluating classification models on semantic inference.  
 
 This dataset is well-suited for testing various **fine-tuning methods** in multi-class text classification.  
