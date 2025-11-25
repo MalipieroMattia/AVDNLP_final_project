@@ -111,23 +111,98 @@ The hypothesis is that LoRA and partial fine-tuning will deliver similar classif
 <details>
   <summary>Destilled BERT - partially finetuned</summary>
 
+  **Parameters:**
+  
+  We fine-tuned the model by unfreezing the last two layers of BERT, allowing them to update during training.
+
+  <img width="1000" height="600" alt="media_images_trainable_parameters_0_bbc74d19606837d90034 (1)" src="https://github.com/user-attachments/assets/20ccb2ae-8228-4ef4-9593-c3c84c9dfb8a" />
+
+  **Training:**
+  
+  Training was stable across three epochs, as shown by steadily decreasing train and validation loss curves. 
+  Key hyperparameters included a batch size of 13, learning rate of 5e-5, dropout rate of 0.5, and weight decay of 0.1.
+  
+  <img width="1000" height="600" alt="media_images_loss_curves_3_58e15d3b8603182ba5dd" src="https://github.com/user-attachments/assets/617fe9b3-8aa8-4f33-8229-e5677c21a6b7" />
+
+  **Classification Results:**
+
+  The classification model achieved an overall accuracy of 81.12% with a test loss of 0.4828, showing solid performance across all three classes. 
+  Precision and recall scores were strong for entailment (F1-score: 0.84) and contradiction (F1-score: 0.83), while neutral performed slightly lower (F1-score: 0.77). 
+  A total of 20,742 samples were misclassified, accounting for 18.9% of the test set, indicating potential for further refinement.
+  
+  <img width="407" height="441" alt="Screenshot 2025-11-25 194332" src="https://github.com/user-attachments/assets/82982424-0bd3-4f34-947b-8143490ba7f5" />
+  <img width="1000" height="800" alt="media_images_confusion_matrix_8_407c43f9d599f3ea75db" src="https://github.com/user-attachments/assets/ef5e3958-372b-4277-a7f0-2b4c44206f30" />
+
 </details>
 
 <details>
   <summary>Destilled BERT - LoRA</summary>
 
+  **Parameters:**
+  
+  We fine-tuned the model by applying LoRA which is a PEFT method, known for being computational efficient since it uses a lot less trainable parameters.
+
+  <img width="1000" height="600" alt="media_images_trainable_parameters_0_9beecd02a95806b63a11" src="https://github.com/user-attachments/assets/98be8672-d310-4407-b754-89fe3b2fe373" />
+
+  **Training:**
+  
+  Training was stable across three epochs, as shown by steadily decreasing train and validation loss curves. 
+  Key hyperparameters included a batch size of 8, learning rate of 1e-4, dropout rate of 0.5, and weight decay of 0.1.
+  
+  <img width="1000" height="600" alt="media_images_loss_curves_3_ae8c92e0575b2a53b6c3" src="https://github.com/user-attachments/assets/35459e9b-654a-4333-833d-7b5712df7f28" />
+
+  **Classification Results:**
+
+  The classification model reached an overall accuracy of 83.48% with a test loss of 0.4479, indicating strong and consistent performance. 
+  F1-scores were high for entailment and contradiction (both 0.86), while neutral maintained a respectable score of 0.79. 
+  A total of 18,151 samples were misclassified, representing 16.5% of the test set, suggesting solid generalization with room for further tuning.
+  
+  <img width="402" height="438" alt="Screenshot 2025-11-25 194955" src="https://github.com/user-attachments/assets/cafd8b54-bf10-48ff-b5c4-cd873b40ce63" />
+  <img width="1000" height="800" alt="media_images_confusion_matrix_8_98e1452325ef83bcaf5a" src="https://github.com/user-attachments/assets/4ea4eeb5-cbf4-4e86-a81b-8e398b88cce8" />
+</details>
+
+# Analysis
+<details>
+  <summary>Misclassifications</summary>
+  
+**Label Distributions**
+  - Across all models, the **neutral class** is the dominant source of misclassifications.
+  - In the **true label distribution**, neutral accounts for roughly half of all mistakes.
+  - In the **predicted label distribution**, all models also over-predict neutral.
+  - This confirms that neutral is the most ambiguous and error-prone category.
+
+**Model Comparison**
+
+- **DistilBERT LoRA** shows the highest share of neutral misclassifications and stronger bias toward predicting neutral overall.
+- **BERT models** (LoRA and Partial) distribute errors more evenly and show slightly better discrimination between entailment and contradiction.
+  
+  <p align="center">
+  <img width="500" alt="image" src="https://github.com/user-attachments/assets/36222ad1-6ae1-4c5f-af44-fa29f5df8c90" />
+  <img width="500" alt="image" src="https://github.com/user-attachments/assets/0a87a9b4-fbd0-4b16-8d42-b24e13b15013" />
+</p>
+
+**Probability Differences**
+- Boxplots of predicted minus true probabilities show that all models exhibit large probability gaps in their misclassifications.
+- Neutral again has the **widest spread**, indicating inconsistent confidence levels.
+- DistilBERT LoRA tends to produce the **largest overconfidence gaps**, while BERT Partial is more stable.
+
+  <p align="center">
+  <img width="400" alt="image" src="https://github.com/user-attachments/assets/c2d239d5-9490-435e-b5ed-1b62658dc6d8" />
+  <img width="400" alt="image" src="https://github.com/user-attachments/assets/ae4ceced-7256-4a01-8265-29c2cccecd66" />
+  <img width="400" alt="image" src="https://github.com/user-attachments/assets/0a89e74d-de9a-4e23-99f8-3e05deffaa54" />
+  <img width="400" alt="image" src="https://github.com/user-attachments/assets/deca6990-2951-4712-bf49-9650215836c3" />
+</p>
+
+**Overall Interpretation**
+- All models share similar weaknesses:
+  - They confuse neutral examples most frequently.
+  - Their probability outputs reveal overconfidence even in wrong predictions.
+- LoRA and partial fine-tuning yield **comparable misclassification behavior**, though BERT variants perform slightly more consistently than DistilBERT ones.
+- Fine-tuning method affects the **extent** of misclassification but not the **type** — the neutral class remains the primary challenge across all setups.
 </details>
 
 <details>
-  <summary>Misclassification Analysis</summary>
-
-  <img width="1089" height="590" alt="image" src="https://github.com/user-attachments/assets/36222ad1-6ae1-4c5f-af44-fa29f5df8c90" />
-  <img width="1089" height="590" alt="image" src="https://github.com/user-attachments/assets/0a87a9b4-fbd0-4b16-8d42-b24e13b15013" />
-
-
-
-
-
+  <summary>Compute</summary>
 
 </details>
 
