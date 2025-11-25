@@ -1,0 +1,46 @@
+# DeBERTa-v2-XXLarge (1.5B params) with Partial Fine-Tuning
+# Unfreeze top N transformer layers + classifier head
+
+# General settings
+seed: 42
+
+# Data settings
+data:
+  file_path: "Stanford/snli_1.0_train.txt"
+  data_dir: "Stanford"
+  test_size: 0.2
+  val_size: 0.1
+  pandas_kwargs: {}
+  label_map: {'entailment': 0, 'neutral': 1, 'contradiction': 2}
+
+# Weights & Biases configuration
+wandb:
+  project: "NLP_mini"
+  entity: "jojs-it-universitetet-i-k-benhavn"
+  run_name: "Stanford_deberta_xxl_partial_finetune"
+  tags: ['Stanford', 'deberta-xxl', 'partial-finetune', 'large-scale']
+  log_model: false
+
+# Model settings
+model:
+  name: "microsoft/deberta-v2-xxlarge"
+  model_type: "bert"  # uses same architecture pattern (encoder-only)
+  use_lora: false
+  freeze_strategy: "partial"  # unfreeze top N layers
+  num_frozen_layers: 8  # unfreeze 8/48 layers (16.7%, same proportion as BERT 2/12)
+  max_len: 256
+  dropout_rate: 0.5
+  checkpoint_dir: "checkpoints"
+  save_local: false
+
+# Training settings
+training:
+  batch_size: 4  # reduced for large model (same as LoRA for fair comparison)
+  num_epochs: 3
+  learning_rate: 0.00003  # same as BERT partial FT
+  dropout_rate: 0.5
+  weight_decay: 0.1
+  warmup_ratio: 0.1
+  max_grad_norm: 1.0
+  early_stopping_patience: 5
+

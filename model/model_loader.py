@@ -75,9 +75,13 @@ class PriceDirectionClassifier(nn.Module):
         # First freeze everything
         self.freeze_transformer()
 
-        # handle both transformer architectures, quack
-        if hasattr(self.transformer, "encoder"):  # BERT
+        # handle multiple transformer architectures
+        if hasattr(self.transformer, "encoder"):  # BERT, DeBERTa-v2
             layers = self.transformer.encoder.layer
+        elif hasattr(self.transformer, "deberta") and hasattr(
+            self.transformer.deberta, "encoder"
+        ):  # DeBERTa-v3
+            layers = self.transformer.deberta.encoder.layer
         elif hasattr(self.transformer, "transformer"):  # DistilBERT
             layers = self.transformer.transformer.layer
         else:
@@ -115,8 +119,9 @@ class ModelLoader:
         model_name = self.model_config["name"]
         print(f"Loading model: {model_name}")
 
-        # Load tokenizer
-        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        # Load tokenizer (use slow tokenizer for DeBERTa to avoid conversion issues)
+        use_fast = False if "deberta" in model_name.lower() else True
+        tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=use_fast)
 
         # Load base model
         dropout_rate = self.training_config["dropout_rate"]
@@ -175,9 +180,12 @@ class ModelLoader:
         # Determine correct target modules based on model architecture
         # BERT uses: attention.self.query, attention.self.value
         # DistilBERT uses: attention.q_lin, attention.v_lin
+        # DeBERTa uses: attention.self.query_proj, attention.self.value_proj
         model_name = self.model_config["name"]
         if "distilbert" in model_name.lower():
             default_targets = ["q_lin", "v_lin"]  # DistilBERT
+        elif "deberta" in model_name.lower():
+            default_targets = ["query_proj", "value_proj"]  # DeBERTa
         else:
             default_targets = ["query", "value"]  # BERT
 
