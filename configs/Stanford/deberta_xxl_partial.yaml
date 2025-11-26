@@ -36,7 +36,7 @@ model:
 # Training settings
 training:
   batch_size: 4  # reduced for large model (same as LoRA for fair comparison)
-  num_epochs: 3
+  num_epochs: 1
   learning_rate: 0.00003  # same as BERT partial FT
   dropout_rate: 0.5
   weight_decay: 0.1

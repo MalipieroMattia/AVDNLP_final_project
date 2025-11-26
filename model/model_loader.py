@@ -119,9 +119,13 @@ class ModelLoader:
         model_name = self.model_config["name"]
         print(f"Loading model: {model_name}")
 
-        # Load tokenizer (use slow tokenizer for DeBERTa to avoid conversion issues)
-        use_fast = False if "deberta" in model_name.lower() else True
-        tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=use_fast)
+        # Load tokenizer (explicit handling for DeBERTa to avoid conversion issues)
+        if "deberta" in model_name.lower():
+            from transformers import DebertaV2Tokenizer
+
+            tokenizer = DebertaV2Tokenizer.from_pretrained(model_name)
+        else:
+            tokenizer = AutoTokenizer.from_pretrained(model_name)
 
         # Load base model
         dropout_rate = self.training_config["dropout_rate"]

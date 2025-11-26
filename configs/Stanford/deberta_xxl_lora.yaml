@@ -44,7 +44,7 @@ model:
 # Training settings
 training:
   batch_size: 4  # reduced for large model (can increase if memory allows)
-  num_epochs: 3
+  num_epochs: 1
   learning_rate: 0.0001  # same as BERT LoRA
   dropout_rate: 0.5
   weight_decay: 0.1
