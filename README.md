@@ -164,6 +164,18 @@ The hypothesis is that LoRA and partial fine-tuning will deliver similar classif
 # Analysis
 <details>
   <summary>Misclassifications</summary>
+
+**Top Misclassified Words**
+
+  <p align="center">
+  <img width="1200" height="700" alt="topWordsMisclassifications" src="https://github.com/user-attachments/assets/58915b74-dda7-4a9d-92d1-50c3e4219513" />
+</p>
+
+- Same top words across models: All four methods misclassify the same core set of words — man, woman, people, wearing, and shirt/young
+- Stable ranking: The relative order of misclassifications is nearly identical (e.g., man always #1, woman always #2)
+- Human-related bias: The most misclassified words are generic, high-frequency human-appearance terms, suggesting shared difficulty rather than model-specific issues
+- Magnitude varies, pattern doesn’t: Raw counts differ (highest in distil_partial), but the relative scale is consistent across methods
+
   
 **Label Distributions**
   - Across all models, the **neutral class** is the dominant source of misclassifications.
@@ -192,16 +204,6 @@ The hypothesis is that LoRA and partial fine-tuning will deliver similar classif
   <img width="400" alt="image" src="https://github.com/user-attachments/assets/0a89e74d-de9a-4e23-99f8-3e05deffaa54" />
   <img width="400" alt="image" src="https://github.com/user-attachments/assets/deca6990-2951-4712-bf49-9650215836c3" />
 </p>
-
-**Top Misclassified Words**
-
-Check out this [visualization](./topWordsAcrossMethods.html)
-
-- Distil Partial dominates overall frequency: The distil_partial model consistently shows the highest counts across nearly all keywords, suggesting it identifies more instances or has broader keyword detection compared to other configurations.
-- Core person-related keywords are most common: "Man" and "woman" are by far the top keywords across all models, followed by "people," indicating the models are primarily detecting human subjects in images.
-Descriptor words follow closely — Action and appearance keywords like "wearing," "young," "shirt," and color terms ("white," "black," "blue") are frequently detected, suggesting the models capture both entity and attribute information.
-- BERT variants underperform Distil variants: Both Distil models (LoRA and Partial) consistently report higher keyword frequencies than their BERT counterparts, with Distil Partial being the highest overall.
-- Partial fine-tuning outperforms LoRA: Comparing within architecture families, the "partial" variants have higher counts than "LoRA" variants, suggesting full parameter fine-tuning captures more keywords than the parameter-efficient LoRA approach.
 
 **Overall Interpretation**
 - All models share similar weaknesses:
